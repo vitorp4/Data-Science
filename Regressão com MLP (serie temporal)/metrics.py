@@ -46,11 +46,6 @@ def ss4(pred, obs):
     pred, obs = dropnan_both(pred, obs)
     return np.power(corr_coef(pred, obs), 4)/(4*np.power(std_ratio(pred, obs)+std_ratio(obs, pred), 2))
 
-def all_metrics_dict(pred, obs):
-    return {'mse':mse(pred, obs), 'rmse':rmse(pred, obs), 'bias':bias(pred, obs), 
-            'mae':mae(pred, obs), 'mape':mape(pred, obs), 'corr_coef':corr_coef(pred, obs), 
-            'std_ratio':std_ratio(pred, obs), 'rmsd':rmsd(pred, obs), 'ss4':ss4(pred, obs)}
-
 def all_metrics_list(pred, obs):
     return [mse(pred, obs), rmse(pred, obs), bias(pred, obs), mae(pred, obs), mape(pred, obs), corr_coef(pred, obs), 
             std_ratio(pred, obs), rmsd(pred, obs), ss4(pred, obs)]
@@ -58,9 +53,11 @@ def all_metrics_list(pred, obs):
 def all_metrics_names():
     return ['mse','rmse','bias','mae','mape','corr_coef','std_ratio','rmsd','ss4']
 
-def all_metrics_from_dataframes(pred: pd.DataFrame, obs: pd.DataFrame):
+def all_metrics_dict(pred, obs):
+    return {x:y for x,y in zip(all_metrics_names(), all_metrics_list(pred, obs))}
+
+def all_metrics_from_dataframe(pred: pd.DataFrame, obs):
     result = {}
-    if pred.shape[1] == obs.shape[1]:
-        for i, label in enumerate(obs.columns.values):
-            result[label] = all_metrics_list(pred.values[:,i], obs.values[:,i])
-        return pd.DataFrame(data=result, index=all_metrics_names())
+    for i, label in enumerate(pred.columns.values):
+        result[label] = all_metrics_list(pred.values[:,i], obs.values)
+    return pd.DataFrame(data=result, index=all_metrics_names())

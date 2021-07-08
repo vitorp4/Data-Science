@@ -1,6 +1,7 @@
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
 from keras.callbacks import EarlyStopping
+from processing import shift
 import numpy as np
 import pandas as pd
 
@@ -8,17 +9,18 @@ class MLP:
 
     models = {}
 
-    def __init__(self, n_horizons, n_inits):
+    def __init__(self, n_lags, n_horizons, n_inits):
+        self.n_lags = n_lags
         self.n_horizons = n_horizons
         self.n_inits = n_inits
 
-    def build(self, hidden_layers, input_size, activation, optimizer, loss):
+    def build(self, hidden_layers, activation, optimizer, loss):
         for h in range(1, self.n_horizons+1):
             model = Sequential()
         
             for i, neurons in enumerate(hidden_layers):
                 if i == 0:
-                    model.add(Dense(neurons, input_shape=(input_size,), activation=activation))
+                    model.add(Dense(neurons, input_shape=(self.n_lags,), activation=activation))
                 else:
                     model.add(Dense(neurons, activation=activation))
 
@@ -51,5 +53,5 @@ class MLP:
             model = self.models[f't+{h}']
             pred = np.append(pred, model.predict(X), 1)
 
-        pred = pd.DataFrame(data={f't+{h}':pred[:,h-1] for h in range(1, self.n_horizons+1)})
+        pred = pd.DataFrame(data={f't+{h}':shift(pred[:,h-1], h) for h in range(1, self.n_horizons+1)})
         return pred

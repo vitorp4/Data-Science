@@ -1,24 +1,31 @@
 import pandas as pd
+import numpy as np
 
-def make_shifts(serie, lags, horizons, dropnan, savename=None):
-    shifts = {}
-
+def patterns(serie, lags, horizons=None, dropnan=False):
+    XY = {}
     for l in range(lags-1, -1, -1):
-        shifts[f't-{l}'] = serie.shift(l)
-  
-    for h in range(1, horizons+1):
-        shifts[f't+{h}'] = serie.shift(-h)
-
-    shifts = pd.DataFrame(data=shifts)
-
+        XY[f't-{l}'] = serie.shift(l)
+    if horizons != None:
+        for h in range(1, horizons+1):
+            XY[f't+{h}'] = serie.shift(-h)
+    XY = pd.DataFrame(data=XY)
     if dropnan:
-        shifts = shifts.dropna()
-    
-    shifts_lags = shifts.iloc[:,:lags]
-    shifts_horizons = shifts.iloc[:,-horizons:]
+        XY = XY.dropna()
+    X = XY.iloc[:,:lags]
+    if horizons != None:
+        Y = XY.iloc[:,-horizons:]
+        return X, Y
+    else:
+        return X
 
-    if savename != None:
-        shifts_lags.to_csv(f'../data/{savename}_lags.csv')
-        shifts_horizons.to_csv(f'../data/{savename}_horizons.csv')
-
-    return shifts_lags, shifts_horizons
+def shift(arr, num, fill=np.nan):
+    result = np.empty_like(arr)
+    if num > 0:
+        result[:num] = fill
+        result[num:] = arr[:-num]
+    elif num < 0:
+        result[num:] = fill
+        result[:num] = arr[-num:]
+    else:
+        result[:] = arr
+    return result
