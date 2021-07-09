@@ -1,5 +1,5 @@
 from keras.models import Sequential
-from keras.layers import Dense, LSTM
+from keras.layers import Dense
 from keras.callbacks import EarlyStopping
 from processing import shift
 import numpy as np
