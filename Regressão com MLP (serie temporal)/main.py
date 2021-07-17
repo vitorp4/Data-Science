@@ -1,48 +1,54 @@
-import numpy as np
+#%%
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from mlp import MLP
-from processing import patterns, persistence
-from metrics import all_metrics_from_dataframe
-from taylor_diagram import diagram
+from persistence import Persistence
+from sklearn.model_selection import train_test_split
+from processing import supervised_patterns, scaling, inverse_scaling
+from metrics import std, metrics_df
+from taylor_diagram import taylor_diagram
+from iop import iop
 
-df = pd.read_csv('australia.csv')
-df['timestamp'] = pd.to_datetime(df['timestamp'])
-df = df.set_index('timestamp').rolling(12).mean().iloc[12::12]
-df.index.name = None
-df = df.interpolate(method='polynomial', order=5, axis=0).clip(lower=0)
+if __name__ == '__main__':
 
-INPUT_SIZE = 4
-HORIZONS = 12
-INITS = 1 
-HIDDEN_LAYERS = [10]
-ACTIVATION = 'relu'
-OPTIMIZER = 'adam'
-LOSS = 'mse'
-VALIDATION_SPLIT = 0.2
-EPOCHS = 200
+    df = pd.read_csv('data/australia.csv')
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df = df.set_index('timestamp').rolling(6).mean().iloc[6::6]
+    df.index.name = None
+    df = df.interpolate(method='polynomial', order=5, axis=0).clip(lower=0)
 
-CENTRAL = 'KIATAWF1'
+    for CENTRAL in ['KIATAWF1', 'BOCORWF1','MACARTH1','STARHLWF']:
 
-serie = df[CENTRAL]
-index = serie.index
-serie.describe()
+        serie = df[CENTRAL]
 
-train, test = train_test_split(serie, test_size=.33, shuffle=False)
-train_idx, test_idx = train_test_split(index, test_size=.33, shuffle=False)
+        train, test = train_test_split(serie, test_size=.33, shuffle=False)
+        train, test, scaler = scaling(train, test, feature_range=(0,1))
 
-pers = persistence(test, 12, index=test_idx)
+        params = {
+            'input_size': 5,
+            'timelag': 1,
+            'horizons': 12,
+            'inits': 1,
+            'hidden_layers': [10],
+            'activation': 'sigmoid',
+            'optimizer': 'sgd',
+            'loss': 'mse',
+            'validation_split': 0.1,
+            'epochs': 200
+        }
 
-for TIMELAG in range(1,20):
+        pers = Persistence(horizons=params['horizons']).predict(test, scaler=scaler)
 
-    X_train, Y_train = patterns(train, INPUT_SIZE, TIMELAG, HORIZONS, dropnan=True, index=train_idx)
-    X_test = patterns(test, INPUT_SIZE, TIMELAG, dropnan=False, index=test_idx)
+        X_train, Y_train = supervised_patterns(train, params['input_size'], params['timelag'], params['horizons'], dropnan=True)
+        X_test = supervised_patterns(test, params['input_size'], params['timelag'], dropnan=False)
 
-    model = MLP(input_size=INPUT_SIZE, horizons=HORIZONS, inits=INITS)
-    model.build(hidden_layers=HIDDEN_LAYERS, activation=ACTIVATION, optimizer=OPTIMIZER, loss=LOSS)
-    model.train(X_train.values, Y_train.values, validation_split=VALIDATION_SPLIT, epochs=EPOCHS)
-    pred = model.predict(X_test.values)
-    pred.index = test_idx
+        model = MLP(input_size=params['input_size'], horizons=params['horizons'], inits=params['inits'])
+        model.build(hidden_layers=params['hidden_layers'], activation=params['activation'], optimizer=params['optimizer'], loss=params['loss'])
+        model.train(X_train, Y_train, validation_split=params['validation_split'], epochs=params['epochs'])
+        pred = model.predict(X_test, scaler)
 
-    metrics = [all_metrics_from_dataframe(pers, test), all_metrics_from_dataframe(pred, test)]
-    diagram(std_obs=np.nanstd(test), metrics=metrics, names=['P','M'], savename=CENTRAL+'_'+str(TIMELAG))
+        metrics = {
+            'P': metrics_df(pers, test),
+            'M': metrics_df(pred, test)
+        }
+        taylor_diagram(std_obs=std(inverse_scaling(test, scaler)), metrics=metrics, title=CENTRAL, savename=f"taylor_{CENTRAL}")
+        iop(metrics=metrics, stat='rmse', central=CENTRAL, model='MLP', savename=f"iop_mse_{CENTRAL}")

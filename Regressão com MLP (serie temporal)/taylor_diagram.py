@@ -2,20 +2,21 @@ import skill_metrics as sm
 import numpy as np
 import matplotlib.pyplot as plt
 
-def diagram(std_obs, metrics, names, title, savename):
+def taylor_diagram(std_obs, metrics, title, savename):
 
-    n_models = len(metrics)
-    n_horizons = metrics[0].shape[1]
+    keys = metrics.keys()
+    columns = metrics[next(iter(keys))].columns.values
+    n_horizons = len(columns)
 
-    STD = [std_obs] + [metrics[i].loc['std_ratio',f't+{h}']*std_obs for i in range(n_models) for h in range(1,n_horizons+1)]
-    RMSD = [0] + [metrics[i].loc['rmsd',f't+{h}'] for i in range(n_models) for h in range(1,n_horizons+1)]
-    CORR = [1] + [metrics[i].loc['corr_coef',f't+{h}'] for i in range(n_models) for h in range(1,n_horizons+1)]
+    STD = [std_obs] + [metrics[k].loc['std',c] for k in keys for c in columns]
+    RMSD = [0] + [metrics[k].loc['rmsd',c] for k in keys for c in columns]
+    CORR = [1] + [metrics[k].loc['corr_coef',c] for k in keys for c in columns]
 
     STD = np.array(STD)
     RMSD = np.array(RMSD)
     CORR = np.array(CORR)
     
-    markerLabel = ['O'] + [f'{names[i]}-{h}' for i in range(n_models) for h in range(1, n_horizons+1)]
+    markerLabel = ['O'] + [f'{k}-{h}' for k in keys for h in range(1,n_horizons+1)]
 
     plt.figure(figsize=(15, 8))
     plt.rc('font', size=14)
@@ -26,6 +27,5 @@ def diagram(std_obs, metrics, names, title, savename):
                     markerLabel = markerLabel,
                     alpha=0.7, checkStats='on', tickrmsangle=135, 
                     markersize=10, colobs='#fc03df')
-    plt.title(title)
-
-    plt.savefig(f"{savename}.png")
+    plt.title(title, y=1.05)
+    plt.savefig(f"images/{savename}.jpg", dpi=300)

@@ -46,18 +46,24 @@ def ss4(pred, obs):
     pred, obs = dropnan_both(pred, obs)
     return np.power(corr_coef(pred, obs), 4)/(4*np.power(std_ratio(pred, obs)+std_ratio(obs, pred), 2))
 
-def all_metrics_list(pred, obs):
-    return [mse(pred, obs), rmse(pred, obs), bias(pred, obs), mae(pred, obs), mape(pred, obs), corr_coef(pred, obs), 
-            std_ratio(pred, obs), rmsd(pred, obs), ss4(pred, obs)]
+def std(array):
+    return np.nanstd(array)
 
-def all_metrics_names():
-    return ['mse','rmse','bias','mae','mape','corr_coef','std_ratio','rmsd','ss4']
+def metrics_list(pred, obs):
+    return [mse(pred, obs), rmse(pred, obs), bias(pred, obs), mae(pred, obs), mape(pred, obs), 
+            corr_coef(pred, obs), std_ratio(pred, obs), rmsd(pred, obs), ss4(pred, obs), std(pred)]
 
-def all_metrics_dict(pred, obs):
-    return {x:y for x,y in zip(all_metrics_names(), all_metrics_list(pred, obs))}
+def metrics_names():
+    return ['mse','rmse','bias','mae','mape','corr_coef','std_ratio','rmsd','ss4','std']
 
-def all_metrics_from_dataframe(pred: pd.DataFrame, obs):
-    result = {}
-    for i, label in enumerate(pred.columns.values):
-        result[label] = all_metrics_list(pred.values[:,i], obs.values)
-    return pd.DataFrame(data=result, index=all_metrics_names())
+def metrics_dict(pred, obs):
+    return {x:y for x,y in zip(metrics_names(), metrics_list(pred, obs))}
+
+def metrics_df(pred: pd.DataFrame, obs):
+    if type(obs) == pd.Series:
+        obs = obs.values
+    stats = {}
+    for horizon in pred.columns.values:
+        pred_h = pred.loc[:,horizon].values
+        stats[horizon] = metrics_list(pred_h, obs)
+    return pd.DataFrame(data=stats, index=metrics_names())
